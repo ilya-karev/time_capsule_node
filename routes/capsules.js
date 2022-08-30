@@ -13,7 +13,8 @@ router.post('/', async (req, res) => {
 
   const capsule = new Capsule({
     content: req.body.content,
-    userID: req.body.userID,
+    ownerID: req.body.ownerID,
+    tags: req.body.tags,
     canOpenAt: req.body.canOpenAt,
     createdAt: req.body.createdAt,
   })
