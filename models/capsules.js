@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const User = require('./user')
+const yup = require('yup')
 
 // CAPSULE SCHEMA
 const CapsuleSchema = new mongoose.Schema({
@@ -26,5 +27,27 @@ const CapsuleSchema = new mongoose.Schema({
   // tags:
 }) 
 
-module.exports = new mongoose.model('Capsule', CapsuleSchema)
+const validateCapsule = async capsule => {
+  const schema = yup.object().shape({
+    content: yup.string().required().min(20, 'Content must be at least 20 characters length').max(20000),
+    userID: yup.string().required().min(1).max(200),
+    canOpenAt: yup.string().required(),
+    createdAt: yup.string().required(),
+  })
+
+  return schema
+    .validate(capsule)
+    .then(capsule => capsule)
+    .catch(error => {
+      console.log('======== CATCH ========')
+      console.log(error)
+      console.log('======== CATCH ========')
+      return {
+        message: error.message
+      }
+    })
+}
+
+exports.Capsule = new mongoose.model('Capsule', CapsuleSchema)
+exports.validateCapsule = validateCapsule
 
