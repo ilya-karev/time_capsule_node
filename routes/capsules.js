@@ -22,8 +22,29 @@ router.post('/', async (req, res) => {
     res.send(capsule)
   }).catch(error => {
     console.log(error)
-    res.status(500).send("Capsule was not created")
+    res.status(500).send(`Capsule was not created`)
   })
+})
+
+// GET CAPSULES
+router.get('/', (req, res) => {
+  Capsule.find()
+    .then(capsules => res.send(capsules))
+    .catch((error) => {
+      res.status(500).send(`something went wrong`)
+    })
+})
+
+// GET CAPSULE BY ID
+router.get(`/:capsuleId`, (req, res) => {
+  Capsule.findById(req.params.capsuleId)
+    .then(capsule => {
+      if (capsule) res.send(capsule)
+      res.status(404).send('Capsule not found')
+    })
+    .catch((error) => {
+      res.status(500).send(error.message)
+    })
 })
 
 module.exports = router
