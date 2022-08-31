@@ -33,9 +33,6 @@ const validateCapsule = async capsule => {
     .validate(capsule)
     .then(capsule => capsule)
     .catch(error => {
-      console.log('======== CATCH ========')
-      console.log(error)
-      console.log('======== CATCH ========')
       return {
         message: error.message
       }

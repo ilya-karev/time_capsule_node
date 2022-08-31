@@ -1,11 +1,19 @@
+const config = require('config');
 const express = require('express')
 const mongoose = require('mongoose')
-const winston = require('winston')
+const logger = require('./helpers/logger')
 const cors = require('cors')
 const app = express()
 require('dotenv').config()
 
+if (!config.get('PrivateKey')) {
+  console.error('FATAL ERROR: PrivateKey is not defined.');
+  process.exit(1);
+}
+
 const capsulesRoute = require('./routes/capsules')
+const usersRoute = require('./routes/users');
+const authRoute = require('./routes/auth');
 
 const PORT = process.env.PORT || 3000
 
@@ -14,24 +22,10 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cors())
 
-// create a logger
-const logger = winston.createLogger({
-  level: 'info',
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize({ all: true })
-      )
-    }),
-    new winston.transports.File({ filename: 'error.log', level: 'error' })
-  ],
-  exceptionHandlers: [
-    new winston.transports.File({ filename: 'exceptions.log' })
-  ]
-})
-
 // routes
 app.use('/api/capsules', capsulesRoute)
+app.use('/api/users', usersRoute)
+app.use('/api/auth', authRoute);
 
 // connect to mongodb atlas
 mongoose.connect(process.env.MONGO_URL, { useNewUrlParser: true })

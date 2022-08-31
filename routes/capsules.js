@@ -1,14 +1,10 @@
 const express = require('express')
 const { Capsule, validateCapsule } = require('../models/capsules')
-
 const router = express.Router()
 
 // POST: CREATE A NEW CAPSULE
 router.post('/', async (req, res) => {
   const error = await validateCapsule(req.body)
-  console.log('======== ERROR ========')
-  console.log(error)
-  console.log('======== ERROR ========')
   if (error.message) return res.status(400).send(error.message)
 
   const capsule = new Capsule({
