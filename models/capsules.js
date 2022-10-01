@@ -24,7 +24,6 @@ const CapsuleSchema = new mongoose.Schema({
 const validateCapsule = async capsule => {
   const schema = yup.object().shape({
     content: yup.string().required().min(20, 'Content must be at least 20 characters length').max(20000),
-    ownerID: yup.string().required().length(24),
     canOpenAt: yup.date().required(),
     createdAt: yup.date().required(),
   })

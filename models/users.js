@@ -15,7 +15,9 @@ const UserSchema = new mongoose.Schema({
       required: true,
       minlength: 5,
       maxlength: 1024
-  }
+  },
+  subscriptions: [mongoose.ObjectId],
+  subscribers: [mongoose.ObjectId],
 })
 
 

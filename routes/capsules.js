@@ -1,15 +1,20 @@
 const express = require('express')
+const auth = require("../middleware/auth");
+const jwt = require('jsonwebtoken');
 const { Capsule, validateCapsule } = require('../models/capsules')
+
 const router = express.Router()
 
 // POST: CREATE A NEW CAPSULE
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   const error = await validateCapsule(req.body)
   if (error.message) return res.status(400).send(error.message)
 
+  console.log(jwt.decode(req.headers["x-auth-token"]))
+
   const capsule = new Capsule({
     content: req.body.content,
-    ownerID: req.body.ownerID,
+    ownerID: jwt.decode(req.headers["x-auth-token"])._id,
     tags: req.body.tags,
     canOpenAt: req.body.canOpenAt,
     createdAt: req.body.createdAt,
@@ -25,7 +30,7 @@ router.post('/', async (req, res) => {
 
 // GET CAPSULES
 router.get('/', (req, res) => {
-  Capsule.find()
+  Capsule.find(req.query)
     .then(capsules => res.send(capsules))
     .catch((error) => {
       res.status(500).send(`something went wrong`)
@@ -33,7 +38,18 @@ router.get('/', (req, res) => {
 })
 
 // GET CAPSULE BY ID
-router.get(`/:capsuleId`, (req, res) => {
+router.get(`/:capsuleId`, auth, (req, res) => {
+  Capsule.findById(req.params.capsuleId)
+    .then(capsule => {
+      if (capsule) res.send(capsule)
+      res.status(404).send('Capsule not found')
+    })
+    .catch((error) => {
+      res.status(500).send(error.message)
+    })
+})
+
+router.get(`/:capsuleId`, auth, (req, res) => {
   Capsule.findById(req.params.capsuleId)
     .then(capsule => {
       if (capsule) res.send(capsule)
