@@ -1,7 +1,9 @@
 const express = require('express')
 const auth = require("../middleware/auth");
 const jwt = require('jsonwebtoken');
-const { Capsule, validateCapsule } = require('../models/capsules')
+const { Capsule, validateCapsule } = require('../models/capsules');
+const { map, reduce } = require('lodash');
+const { User } = require('../models/users');
 
 const router = express.Router()
 
@@ -30,8 +32,19 @@ router.post('/', auth, async (req, res) => {
 
 // GET CAPSULES
 router.get('/', (req, res) => {
-  Capsule.find(req.query)
-    .then(capsules => res.send(capsules))
+  Capsule.find(req.query, '-content')
+    .then(async capsules => {
+      const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
+      const owners = await User.find().where('_id').in(ownersIDs).exec()
+      const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: owner }), {})
+      const result = map(capsules, (capsule) => {
+        const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
+        const capsuleWithNickname = Object.assign({ canBeOpened }, capsule._doc)
+        capsuleWithNickname.nickname = ownersObject[capsule.ownerID.toString()].email
+        return capsuleWithNickname
+      })
+      res.send(result)
+    })
     .catch((error) => {
       res.status(500).send(`something went wrong`)
     })
@@ -39,10 +52,15 @@ router.get('/', (req, res) => {
 
 // GET CAPSULE BY ID
 router.get(`/:capsuleId`, auth, (req, res) => {
-  Capsule.findById(req.params.capsuleId)
-    .then(capsule => {
-      if (capsule) res.send(capsule)
-      res.status(404).send('Capsule not found')
+  Capsule.find(req.params.capsuleId)
+    .then(async capsule => {
+      const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
+      if (capsule) {
+        if (canBeOpened) {
+          const owner = await User.findById(capsule.ownerID)
+          res.send({ ...capsule, owner, canBeOpened })
+        } else res.status(400).send('It\'s not time yet')
+      } else res.status(404).send('Capsule not found')
     })
     .catch((error) => {
       res.status(500).send(error.message)
