@@ -6,26 +6,27 @@ const _ = require('lodash');
 const { User } = require('../models/users');
 const express = require('express');
 const correctId = require('../helpers/correctId');
+const setError = require('../helpers/setError');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
     const error = await validateRequest(req.body);
     if (error.message)
-      return res.status(400).send(error.message);
+      return res.status(400).send(setError(error.message, 400));
     
     let user = await User.findOne({ email: req.body.email });
     if (!user)
-      return res.status(400).send('Incorrect email or password.');
+      return res.status(400).send(setError('Incorrect email or password.', 400));
   
     const validPassword = await bcrypt.compare(req.body.password, user.password);
     if (!validPassword)
-      return res.status(400).send('Incorrect email or password.');
+      return res.status(400).send(setError('Incorrect email or password.', 400));
       
     const token = jwt.sign({ _id: user._id }, config.get('PrivateKey'), { expiresIn: "1d" });
     
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
-    res.header('x-auth-token', token).send(correctId(_.pick(user, ['_id', 'name', 'email'])));
+    res.header('x-auth-token', token).send(correctId(_.pick(user, ['_id', 'email'])));
   } catch (err) {
     console.log(err)
   }

@@ -6,8 +6,8 @@ const CapsuleSchema = new mongoose.Schema({
   content: {
     type: String,
     required: true,
-    minlength: 20,
-    maxlength: 20000,
+    minlength: 10,
+    maxlength: 5000,
   },
   tags: [String],
   ownerID: mongoose.ObjectId,
@@ -23,7 +23,7 @@ const CapsuleSchema = new mongoose.Schema({
 
 const validateCapsule = async capsule => {
   const schema = yup.object().shape({
-    content: yup.string().required().min(20, 'Content must be at least 20 characters length').max(20000),
+    content: yup.string().required().min(10, 'Content must be at least 10 characters length').max(20000),
     canOpenAt: yup.date().required(),
     createdAt: yup.date().required(),
   })

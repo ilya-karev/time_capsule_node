@@ -6,13 +6,14 @@ const { map, reduce } = require('lodash');
 
 const { User } = require('../models/users');
 const correctId = require('../helpers/correctId');
+const setError = require('../helpers/setError');
 
 const router = express.Router()
 
 // POST: CREATE A NEW CAPSULE
 router.post('/', auth, async (req, res) => {
   const error = await validateCapsule(req.body)
-  if (error.message) return res.status(400).send(error.message)
+  if (error.message) return res.status(400).send(setError(error.message, 400))
 
   console.log(jwt.decode(req.headers["x-auth-token"]))
 
@@ -48,7 +49,7 @@ router.get('/', (req, res) => {
       res.send(result)
     })
     .catch((error) => {
-      res.status(500).send(`something went wrong`)
+      res.status(500).send(setError(`something went wrong`, 500))
     })
 })
 
@@ -66,19 +67,19 @@ router.get(`/:capsuleId`, auth, (req, res) => {
     })
     .catch((error) => {
       console.log(error.message)
-      res.status(500).send(error.message)
+      res.status(500).send(setError(error.message, 500))
     })
 })
 
-router.get(`/:capsuleId`, auth, (req, res) => {
-  Capsule.findById(req.params.capsuleId)
-    .then(capsule => {
-      if (capsule) res.send(correctId(capsule))
-      res.status(404).send('Capsule not found')
-    })
-    .catch((error) => {
-      res.status(500).send(error.message)
-    })
-})
+// router.get(`/:capsuleId`, auth, (req, res) => {
+//   Capsule.findById(req.params.capsuleId)
+//     .then(capsule => {
+//       if (capsule) res.send(correctId(capsule))
+//       res.status(404).send('Capsule not found')
+//     })
+//     .catch((error) => {
+//       res.status(500).send(setError(error.message, 500))
+//     })
+// })
 
 module.exports = router

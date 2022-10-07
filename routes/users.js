@@ -6,6 +6,8 @@ const _ = require('lodash');
 const { User, validateUser } = require('../models/users');
 const auth = require("../middleware/auth");
 const { map } = require('lodash');
+const setError = require('../helpers/setError');
+const correctId = require('../helpers/correctId');
 
 const router = express.Router();
 
@@ -13,11 +15,11 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   const error = await validateUser(req.body);
   if (error.message)
-    return res.status(400).send(error.message)
+    return res.status(400).send(setError(error.message, 400))
 
   const isUserExists = await User.findOne({ email: req.body.email });
   if (isUserExists) {
-    return res.status(400).send('That user already exisits!');
+    return res.status(400).send(setError('That user already exisits!', 400));
   } else {
     const newUser = new User({
       ..._.pick(req.body, ['email', 'password']),
@@ -41,7 +43,7 @@ router.post('/:userId/subscribe', async (req, res) => {
   
   const isAlreadySubscripted = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
   if (isAlreadySubscripted) {
-    res.status(400).send('You have already subscripted to this user');
+    res.status(400).send(setError('You have already subscripted to this user', 400));
   } else {
     User.findById(subscriber._id).then(user => {
       user.subscriptions.push(req.params.userId)
@@ -62,7 +64,7 @@ router.delete('/:userId/unsubscribe', async (req, res) => {
   const isUserExists = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
 
   if (!isUserExists) {
-    res.status(400).send('You have not subscripted to this user');
+    res.status(400).send(setError('You have not subscripted to this user', 400));
   } else {
     console.log(isUserExists)
     console.log(req.params.userId)
@@ -102,7 +104,7 @@ router.get('/', auth, (req, res) => {
   User.find()
     .then(users => res.send(map(users, user => correctId(user))))
     .catch((error) => {
-      res.status(500).send(`something went wrong`)
+      res.status(500).send(setError(`something went wrong`, 500))
     })
 })
 
@@ -111,10 +113,10 @@ router.get(`/:userId`, auth, (req, res) => {
   User.findById(req.params.userId)
     .then(user => {
       if (user) res.send(correctId(user))
-      else res.status(404).send('User not found')
+      else res.status(404).send(setError('User not found', 404))
     })
     .catch((error) => {
-      res.status(500).send(error.message)
+      res.status(500).send(setError(error.message, 500))
     })
 })
 
