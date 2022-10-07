@@ -5,6 +5,7 @@ const express = require('express');
 const _ = require('lodash');
 const { User, validateUser } = require('../models/users');
 const auth = require("../middleware/auth");
+const { map } = require('lodash');
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.post('/', async (req, res) => {
     const token = jwt.sign({ _id: newUser._id }, config.get('PrivateKey'), { expiresIn: "1d" });
 
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
-    res.header('x-auth-token', token).send(_.pick(newUser, ['_id', 'email']));
+    res.header('x-auth-token', token).send(correctId(_.pick(newUser, ['_id', 'email'])));
   }
 });
 
@@ -99,7 +100,7 @@ router.get('/:userId/isSubscribed', async (req, res) => {
 // GET USERS
 router.get('/', auth, (req, res) => {
   User.find()
-    .then(users => res.send(users))
+    .then(users => res.send(map(users, user => correctId(user))))
     .catch((error) => {
       res.status(500).send(`something went wrong`)
     })
@@ -109,7 +110,7 @@ router.get('/', auth, (req, res) => {
 router.get(`/:userId`, auth, (req, res) => {
   User.findById(req.params.userId)
     .then(user => {
-      if (user) res.send(user)
+      if (user) res.send(correctId(user))
       else res.status(404).send('User not found')
     })
     .catch((error) => {

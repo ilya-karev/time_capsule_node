@@ -3,7 +3,9 @@ const auth = require("../middleware/auth");
 const jwt = require('jsonwebtoken');
 const { Capsule, validateCapsule } = require('../models/capsules');
 const { map, reduce } = require('lodash');
+
 const { User } = require('../models/users');
+const correctId = require('../helpers/correctId');
 
 const router = express.Router()
 
@@ -23,7 +25,7 @@ router.post('/', auth, async (req, res) => {
   })
 
   capsule.save().then(capsule => {
-    res.send(capsule)
+    res.send(correctId(capsule))
   }).catch(error => {
     console.log(error)
     res.status(500).send(`Capsule was not created`)
@@ -41,7 +43,7 @@ router.get('/', (req, res) => {
         const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
         const capsuleWithNickname = Object.assign({ canBeOpened }, capsule._doc)
         capsuleWithNickname.nickname = ownersObject[capsule.ownerID.toString()].email
-        return capsuleWithNickname
+        return correctId(capsuleWithNickname)
       })
       res.send(result)
     })
@@ -52,17 +54,18 @@ router.get('/', (req, res) => {
 
 // GET CAPSULE BY ID
 router.get(`/:capsuleId`, auth, (req, res) => {
-  Capsule.find(req.params.capsuleId)
+  Capsule.findById(req.params.capsuleId)
     .then(async capsule => {
       const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
       if (capsule) {
         if (canBeOpened) {
           const owner = await User.findById(capsule.ownerID)
-          res.send({ ...capsule, owner, canBeOpened })
+          res.send(correctId({ ...capsule._doc, owner, canBeOpened }))
         } else res.status(400).send('It\'s not time yet')
       } else res.status(404).send('Capsule not found')
     })
     .catch((error) => {
+      console.log(error.message)
       res.status(500).send(error.message)
     })
 })
@@ -70,7 +73,7 @@ router.get(`/:capsuleId`, auth, (req, res) => {
 router.get(`/:capsuleId`, auth, (req, res) => {
   Capsule.findById(req.params.capsuleId)
     .then(capsule => {
-      if (capsule) res.send(capsule)
+      if (capsule) res.send(correctId(capsule))
       res.status(404).send('Capsule not found')
     })
     .catch((error) => {
