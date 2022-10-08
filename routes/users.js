@@ -3,11 +3,11 @@ const config = require('config');
 const bcrypt = require('bcrypt');
 const express = require('express');
 const _ = require('lodash');
-const { User, validateUser } = require('../models/users');
+const { User, validateUser, validateUserInfo } = require('../models/users');
 const auth = require("../middleware/auth");
 const { map } = require('lodash');
 const setError = require('../helpers/setError');
-const correctId = require('../helpers/correctId');
+const { clientId } = require('../helpers/clientId');
 
 const router = express.Router();
 
@@ -33,9 +33,20 @@ router.post('/', async (req, res) => {
     const token = jwt.sign({ _id: newUser._id }, config.get('PrivateKey'), { expiresIn: "1d" });
 
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
-    res.header('x-auth-token', token).send(correctId(_.pick(newUser, ['_id', 'email'])));
+    res.header('x-auth-token', token).send(clientId(_.pick(newUser, ['_id', 'email'])));
   }
 });
+
+// UPDATE USER
+router.put('/update', auth, async (req, res) => {
+  const error = await validateUserInfo(req.body);
+  if (error.message)
+    return res.status(400).send(setError(error.message, 400))
+
+  User.findByIdAndUpdate(req.user._id, _.pick(req.body, ['nickname', 'site', 'about']), { returnOriginal: false })
+      .then(user => res.status(200).send({ message: 'User was successfully updated', status: 200, data: user }))
+      .catch(error => res.status(500).send({ message: 'User wasn\'t updated, something went wrong', status: 500, error }))
+})
 
 // SUBSCRIBE
 router.post('/:userId/subscribe', async (req, res) => {
@@ -53,7 +64,7 @@ router.post('/:userId/subscribe', async (req, res) => {
       user.subscribers.push(subscriber._id)
       user.save()
     })
-    res.status(200).send('You have successfully subscribed');
+    res.status(200).send({ message: 'You have successfully subscribed', status: 200 });
   }
 })
 
@@ -80,7 +91,7 @@ router.delete('/:userId/unsubscribe', async (req, res) => {
         },
     });
   
-    res.status(200).send('You have successfully unsubscribed');
+    res.status(200).send({ message: 'You have successfully unsubscribed', status: 200 });
   }
 })
 
@@ -90,7 +101,6 @@ router.get('/:userId/isSubscribed', async (req, res) => {
   
   User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
     .then((user) => {
-      console.log(user)
       if (user)
         res.status(200).send(true);
       else
@@ -102,7 +112,7 @@ router.get('/:userId/isSubscribed', async (req, res) => {
 // GET USERS
 router.get('/', auth, (req, res) => {
   User.find()
-    .then(users => res.send(map(users, user => correctId(user))))
+    .then(users => res.send(map(users, user => clientId(user))))
     .catch((error) => {
       res.status(500).send(setError(`something went wrong`, 500))
     })
@@ -112,7 +122,7 @@ router.get('/', auth, (req, res) => {
 router.get(`/:userId`, auth, (req, res) => {
   User.findById(req.params.userId)
     .then(user => {
-      if (user) res.send(correctId(user))
+      if (user) res.send(clientId(user))
       else res.status(404).send(setError('User not found', 404))
     })
     .catch((error) => {

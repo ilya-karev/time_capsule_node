@@ -18,6 +18,21 @@ const UserSchema = new mongoose.Schema({
   },
   subscriptions: [mongoose.ObjectId],
   subscribers: [mongoose.ObjectId],
+  nickname: {
+    type: String,
+    minlength: 2,
+    maxlength: 255,
+  },
+  site: {
+    type: String,
+    required: false,
+    maxlength: 255,
+  },
+  about: {
+    type: String,
+    required: false,
+    maxlength: 255,
+  },
 })
 
 
@@ -37,5 +52,20 @@ const validateUser = async user => {
     })
 }
 
+const validateUserInfo = async userInfo => {
+  const schema = yup.object().shape({
+    nickname: yup.string().required().min(2).max(17),
+    site: yup.string().max(255),
+    about: yup.string().max(255),
+  })
+
+  return schema
+    .validate(userInfo)
+    .then(userInfo => userInfo)
+    .catch(error => ({ message: error.message }))
+}
+
+
 exports.User = new mongoose.model('User', UserSchema)
 exports.validateUser = validateUser;
+exports.validateUserInfo = validateUserInfo;

@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const _ = require('lodash');
 const { User } = require('../models/users');
 const express = require('express');
-const correctId = require('../helpers/correctId');
+const { clientId } = require('../helpers/clientId');
 const setError = require('../helpers/setError');
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     const token = jwt.sign({ _id: user._id }, config.get('PrivateKey'), { expiresIn: "1d" });
     
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
-    res.header('x-auth-token', token).send(correctId(_.pick(user, ['_id', 'email'])));
+    res.header('x-auth-token', token).send(clientId(_.pick(user, ['_id', 'email'])));
   } catch (err) {
     console.log(err)
   }

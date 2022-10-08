@@ -1,11 +1,12 @@
 const express = require('express')
-const auth = require("../middleware/auth");
+const _ = require('lodash');
 const jwt = require('jsonwebtoken');
 const { Capsule, validateCapsule } = require('../models/capsules');
 const { map, reduce } = require('lodash');
 
+const auth = require("../middleware/auth");
 const { User } = require('../models/users');
-const correctId = require('../helpers/correctId');
+const { clientId, mongoId } = require('../helpers/clientId');
 const setError = require('../helpers/setError');
 
 const router = express.Router()
@@ -26,7 +27,7 @@ router.post('/', auth, async (req, res) => {
   })
 
   capsule.save().then(capsule => {
-    res.send(correctId(capsule))
+    res.send(clientId(capsule))
   }).catch(error => {
     console.log(error)
     res.status(500).send(`Capsule was not created`)
@@ -35,7 +36,7 @@ router.post('/', auth, async (req, res) => {
 
 // GET CAPSULES
 router.get('/', (req, res) => {
-  Capsule.find(req.query, '-content')
+  Capsule.find(mongoId(_.pick(req.query, ['ownerID'])), '-content')
     .then(async capsules => {
       const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
       const owners = await User.find().where('_id').in(ownersIDs).exec()
@@ -44,7 +45,7 @@ router.get('/', (req, res) => {
         const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
         const capsuleWithNickname = Object.assign({ canBeOpened }, capsule._doc)
         capsuleWithNickname.nickname = ownersObject[capsule.ownerID.toString()].email
-        return correctId(capsuleWithNickname)
+        return clientId(capsuleWithNickname)
       })
       res.send(result)
     })
@@ -61,7 +62,7 @@ router.get(`/:capsuleId`, auth, (req, res) => {
       if (capsule) {
         if (canBeOpened) {
           const owner = await User.findById(capsule.ownerID)
-          res.send(correctId({ ...capsule._doc, owner, canBeOpened }))
+          res.send(clientId({ ...capsule._doc, owner, canBeOpened }))
         } else res.status(400).send('It\'s not time yet')
       } else res.status(404).send('Capsule not found')
     })
@@ -74,7 +75,7 @@ router.get(`/:capsuleId`, auth, (req, res) => {
 // router.get(`/:capsuleId`, auth, (req, res) => {
 //   Capsule.findById(req.params.capsuleId)
 //     .then(capsule => {
-//       if (capsule) res.send(correctId(capsule))
+//       if (capsule) res.send(clientId(capsule))
 //       res.status(404).send('Capsule not found')
 //     })
 //     .catch((error) => {
