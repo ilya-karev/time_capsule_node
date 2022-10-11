@@ -8,6 +8,7 @@ const auth = require("../middleware/auth");
 const { map } = require('lodash');
 const setError = require('../helpers/setError');
 const { clientId } = require('../helpers/clientId');
+const { Capsule } = require('../models/capsules');
 
 const router = express.Router();
 
@@ -43,7 +44,15 @@ router.put('/update', auth, async (req, res) => {
   if (error.message)
     return res.status(400).send(setError(error.message, 400))
 
-  User.findByIdAndUpdate(req.user._id, _.pick(req.body, ['nickname', 'site', 'about']), { returnOriginal: false })
+  const userInfo = _.pick(req.body, ['nickname', 'site', 'about'])
+  if (userInfo.nickname) {
+    userInfo.nickname = userInfo.nickname.toLowerCase()
+    const isNicknameTaken = await User.findOne({ nickname: userInfo.nickname });
+    if (isNicknameTaken)
+      return res.status(400).send(setError('This nickname is already taken!', 400));
+  }
+
+  User.findByIdAndUpdate(req.user._id, userInfo, { returnOriginal: false })
       .then(user => res.status(200).send({ message: 'User was successfully updated', status: 200, data: user }))
       .catch(error => res.status(500).send({ message: 'User wasn\'t updated, something went wrong', status: 500, error }))
 })
@@ -121,8 +130,11 @@ router.get('/', auth, (req, res) => {
 // GET USER BY ID
 router.get(`/:userId`, auth, (req, res) => {
   User.findById(req.params.userId)
-    .then(user => {
-      if (user) res.send(clientId(user._doc))
+    .then(async user => {
+      const activeUser = jwt.decode(req.headers["x-auth-token"])
+      const isTrackedOn = user.subscribers.includes(activeUser._id)
+      const capsulesQty = await Capsule.count({ ownerID: req.params.userId })
+      if (user) res.send({ ...clientId(user._doc), capsulesQty, isTrackedOn })
       else res.status(404).send(setError('User not found', 404))
     })
     .catch((error) => {

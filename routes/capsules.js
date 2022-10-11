@@ -21,7 +21,7 @@ router.post('/', auth, async (req, res) => {
   const capsule = new Capsule({
     content: req.body.content,
     ownerID: jwt.decode(req.headers["x-auth-token"])._id,
-    tags: req.body.tags,
+    tags: map(req.body.tags, (tag) => tag.toLowerCase()),
     canOpenAt: req.body.canOpenAt,
     createdAt: req.body.createdAt,
   })
@@ -36,16 +36,17 @@ router.post('/', auth, async (req, res) => {
 
 // GET CAPSULES
 router.get('/', (req, res) => {
-  Capsule.find(mongoId(_.pick(req.query, ['ownerID'])), '-content')
+  Capsule.find(mongoId(_.pick(req.query, ['ownerID'])))
     .then(async capsules => {
       const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
       const owners = await User.find().where('_id').in(ownersIDs).exec()
       const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: owner }), {})
-      const result = map(capsules, (capsule) => {
-        const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
-        const capsuleWithNickname = Object.assign({ canBeOpened }, capsule._doc)
-        capsuleWithNickname.nickname = ownersObject[capsule.ownerID.toString()].nickname
-        return clientId(capsuleWithNickname)
+      const result = map(capsules, (capsuleRecord) => {
+        const capsule = { ...capsuleRecord._doc }
+        if (new Date(capsule.canOpenAt) > new Date())
+          delete capsule.content
+        capsule.nickname = ownersObject[capsule.ownerID.toString()].nickname
+        return clientId(capsule)
       })
       res.send(result)
     })
