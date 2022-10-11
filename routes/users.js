@@ -122,7 +122,7 @@ router.get('/', auth, (req, res) => {
 router.get(`/:userId`, auth, (req, res) => {
   User.findById(req.params.userId)
     .then(user => {
-      if (user) res.send(clientId(user))
+      if (user) res.send(clientId(user._doc))
       else res.status(404).send(setError('User not found', 404))
     })
     .catch((error) => {

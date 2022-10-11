@@ -56,7 +56,7 @@ const validateUserInfo = async userInfo => {
   const schema = yup.object().shape({
     nickname: yup.string().required().min(2).max(17),
     site: yup.string().max(255),
-    about: yup.string().max(255),
+    about: yup.string().max(1024),
   })
 
   return schema

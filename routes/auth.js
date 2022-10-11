@@ -24,9 +24,9 @@ router.post('/', async (req, res) => {
       return res.status(400).send(setError('Incorrect email or password.', 400));
       
     const token = jwt.sign({ _id: user._id }, config.get('PrivateKey'), { expiresIn: "1d" });
-    
+
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
-    res.header('x-auth-token', token).send(clientId(_.pick(user, ['_id', 'email'])));
+    res.header('x-auth-token', token).send(clientId(_.pick(user, ['_id', 'email', 'nickname'])));
   } catch (err) {
     console.log(err)
   }

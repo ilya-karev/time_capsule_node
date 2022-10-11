@@ -44,7 +44,7 @@ router.get('/', (req, res) => {
       const result = map(capsules, (capsule) => {
         const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
         const capsuleWithNickname = Object.assign({ canBeOpened }, capsule._doc)
-        capsuleWithNickname.nickname = ownersObject[capsule.ownerID.toString()].email
+        capsuleWithNickname.nickname = ownersObject[capsule.ownerID.toString()].nickname
         return clientId(capsuleWithNickname)
       })
       res.send(result)
