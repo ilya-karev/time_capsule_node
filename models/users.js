@@ -18,6 +18,7 @@ const UserSchema = new mongoose.Schema({
   },
   subscriptions: [mongoose.ObjectId],
   subscribers: [mongoose.ObjectId],
+  tracks: [mongoose.ObjectId],
   nickname: {
     type: String,
     minlength: 2,

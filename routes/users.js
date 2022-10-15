@@ -58,7 +58,7 @@ router.put('/update', auth, async (req, res) => {
 })
 
 // SUBSCRIBE
-router.post('/:userId/subscribe', async (req, res) => {
+router.post('/:userId/track', async (req, res) => {
   const subscriber = jwt.decode(req.headers["x-auth-token"])
   
   const isAlreadySubscripted = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
@@ -78,7 +78,7 @@ router.post('/:userId/subscribe', async (req, res) => {
 })
 
 // UNSUBSCRIBE
-router.delete('/:userId/unsubscribe', async (req, res) => {
+router.delete('/:userId/untrack', async (req, res) => {
   const subscriber = jwt.decode(req.headers["x-auth-token"])
   
   const isUserExists = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
@@ -86,9 +86,6 @@ router.delete('/:userId/unsubscribe', async (req, res) => {
   if (!isUserExists) {
     res.status(400).send(setError('You have not subscripted to this user', 400));
   } else {
-    console.log(isUserExists)
-    console.log(req.params.userId)
-    console.log(subscriber._id)
     await User.findByIdAndUpdate(req.params.userId, {
         $pull: {
           subscribers: subscriber._id,

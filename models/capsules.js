@@ -10,6 +10,7 @@ const CapsuleSchema = new mongoose.Schema({
     maxlength: 5000,
   },
   tags: [String],
+  trackers: [mongoose.ObjectId],
   ownerID: mongoose.ObjectId,
   canOpenAt: {
     type: Date,

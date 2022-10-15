@@ -73,15 +73,59 @@ router.get(`/:capsuleId`, auth, (req, res) => {
     })
 })
 
-// router.get(`/:capsuleId`, auth, (req, res) => {
-//   Capsule.findById(req.params.capsuleId)
-//     .then(capsule => {
-//       if (capsule) res.send(clientId(capsule))
-//       res.status(404).send('Capsule not found')
-//     })
-//     .catch((error) => {
-//       res.status(500).send(setError(error.message, 500))
-//     })
-// })
+// TRACK CAPSULE
+router.post('/:capsuleId/track', async (req, res) => {
+  const tracker = jwt.decode(req.headers["x-auth-token"])
+  
+  const isAlreadyTrackeded = await Capsule.findOne({ _id: req.params.capsuleId, trackers: { $all : [tracker._id] } })
+  if (isAlreadyTrackeded) {
+    res.status(400).send(setError('You are already track this capsule', 400));
+  } else {
+    User.findById(tracker._id).then(user => {
+      user.tracks.push(req.params.capsuleId)
+      user.save()
+    })
+    Capsule.findById(req.params.capsuleId).then(capsule => {
+      capsule.trackers.push(tracker._id)
+      capsule.save()
+    })
+    res.status(200).send({ message: 'You are now track this capsule', status: 200 });
+  }
+})
+
+// UNTRACK CAPSULE
+router.delete('/:capsuleId/untrack', async (req, res) => {
+  const tracker = jwt.decode(req.headers["x-auth-token"])
+  
+  const isUserTrack = await Capsule.findOne({ _id: req.params.capsuleId, trackers: { $all : [tracker._id] } })
+
+  if (!isUserTrack) {
+    res.status(400).send(setError('You are not track this capsule', 400));
+  } else {
+    await Capsule.findByIdAndUpdate(req.params.capsuleId, {
+      $pull: { trackers: tracker._id }
+    });
+    await User.findByIdAndUpdate(tracker._id, {
+      $pull: { tracks: req.params.capsuleId }
+    });
+  
+    res.status(200).send({ message: 'You are not now track this capsule', status: 200 });
+  }
+})
+
+// IS USER SUBSCRIBED ON CAPSULE
+router.get('/:capsuleId/isSubscribed', async (req, res) => {
+  const tracker = jwt.decode(req.headers["x-auth-token"])
+  
+  Capsule.findOne({ _id: req.params.capsuleId, trackers: { $all : [tracker._id] } })
+    .then((capsule) => {
+      if (capsule)
+        res.status(200).send(true);
+      else
+        res.status(200).send(false);
+    })
+
+})
+
 
 module.exports = router
