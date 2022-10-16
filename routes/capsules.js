@@ -46,9 +46,13 @@ router.get('/', auth, (req, res) => {
           ...capsuleRecord._doc,
           trackersQty: capsuleRecord.trackers?.length || 0,
           isTrackedOn: capsuleRecord.trackers?.includes(req.user._id),
+          likesQty: capsuleRecord.likes?.length || 0,
+          isLiked: capsuleRecord.likes?.includes(req.user._id),
           nickname: ownersObject[capsuleRecord.ownerID.toString()].nickname,
         }
+
         delete capsule.trackers
+        delete capsule.likes
         if (new Date(capsule.canOpenAt) > new Date())
           delete capsule.content
 
@@ -76,9 +80,12 @@ router.get(`/:capsuleId`, auth, (req, res) => {
             owner,
             canBeOpened,
             trackersQty: capsule.trackers?.length || 0,
-            isTrackedOn: capsule.trackers?.includes(req.user._id)
+            isTrackedOn: capsule.trackers?.includes(req.user._id),
+            likesQty: capsule.likes?.length || 0,
+            isLiked: capsule.likes?.includes(req.user._id),
           }
           delete result.trackers
+          delete result.likes
           res.send(clientId(result))
         } else res.status(400).send('It\'s not time yet')
       } else res.status(404).send('Capsule not found')
@@ -108,7 +115,6 @@ router.post('/:capsuleId/track', async (req, res) => {
     res.status(200).send({ message: 'You are now track this capsule', status: 200 });
   }
 })
-
 // UNTRACK CAPSULE
 router.delete('/:capsuleId/untrack', async (req, res) => {
   const tracker = jwt.decode(req.headers["x-auth-token"])
@@ -128,9 +134,8 @@ router.delete('/:capsuleId/untrack', async (req, res) => {
     res.status(200).send({ message: 'You are not now track this capsule', status: 200 });
   }
 })
-
 // IS USER SUBSCRIBED ON CAPSULE
-router.get('/:capsuleId/isSubscribed', async (req, res) => {
+router.get('/:capsuleId/isTracked', async (req, res) => {
   const tracker = jwt.decode(req.headers["x-auth-token"])
   
   Capsule.findOne({ _id: req.params.capsuleId, trackers: { $all : [tracker._id] } })
@@ -140,8 +145,49 @@ router.get('/:capsuleId/isSubscribed', async (req, res) => {
       else
         res.status(200).send(false);
     })
-
 })
 
+
+// LIKE CAPSULE
+router.post('/:capsuleId/like', async (req, res) => {
+  const liker = jwt.decode(req.headers["x-auth-token"])
+  
+  const isAlreadyLiked = await Capsule.findOne({ _id: req.params.capsuleId, likes: { $all : [liker._id] } })
+  if (isAlreadyLiked) {
+    res.status(400).send(setError('You already liked this capsule', 400));
+  } else {
+    Capsule.findById(req.params.capsuleId).then(capsule => {
+      capsule.likes.push(liker._id)
+      capsule.save()
+    })
+    res.status(200).send({ message: 'You liked this capsule', status: 200 });
+  }
+})
+// UNLIKE CAPSULE
+router.delete('/:capsuleId/unlike', async (req, res) => {
+  const liker = jwt.decode(req.headers["x-auth-token"])
+  
+  const isUserLike = await Capsule.findOne({ _id: req.params.capsuleId, likes: { $all : [liker._id] } })
+
+  if (!isUserLike) {
+    res.status(400).send(setError('You not liked this capsule', 400));
+  } else {
+    await Capsule.findByIdAndUpdate(req.params.capsuleId, {
+      $pull: { likes: liker._id }
+    });
+  
+    res.status(200).send({ message: 'You unliked this capsule', status: 200 });
+  }
+})
+// IS USER LIKED CAPSULE
+router.get('/:capsuleId/isLiked', async (req, res) => {
+  const liker = jwt.decode(req.headers["x-auth-token"])
+  
+  Capsule.findOne({ _id: req.params.capsuleId, likes: { $all : [liker._id] } })
+    .then((capsule) => {
+      if (capsule) res.status(200).send(true);
+      else res.status(200).send(false);
+    })
+})
 
 module.exports = router

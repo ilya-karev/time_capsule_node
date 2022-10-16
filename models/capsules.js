@@ -11,6 +11,7 @@ const CapsuleSchema = new mongoose.Schema({
   },
   tags: [String],
   trackers: [mongoose.ObjectId],
+  likes: [mongoose.ObjectId],
   ownerID: mongoose.ObjectId,
   canOpenAt: {
     type: Date,
