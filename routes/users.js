@@ -26,6 +26,7 @@ router.post('/', async (req, res) => {
       ..._.pick(req.body, ['email', 'password']),
       subscribers: [],
       subscriptions: [],
+      tracks: [],
     });
     const salt = await bcrypt.genSalt(10);
     newUser.password = await bcrypt.hash(newUser.password, salt);
@@ -127,14 +128,23 @@ router.get('/', auth, (req, res) => {
 // GET USER BY ID
 router.get(`/:userId`, auth, (req, res) => {
   User.findById(req.params.userId)
+    .select('-subscriptions -tracks')
     .then(async user => {
-      const activeUser = jwt.decode(req.headers["x-auth-token"])
-      const isTrackedOn = user.subscribers.includes(activeUser._id)
-      const capsulesQty = await Capsule.count({ ownerID: req.params.userId })
-      if (user) res.send({ ...clientId(user._doc), capsulesQty, isTrackedOn })
-      else res.status(404).send(setError('User not found', 404))
+      if (user) {
+        const activeUser = jwt.decode(req.headers["x-auth-token"])
+        const result = {
+          ...user._doc,
+          isTrackedOn: user.subscribers.includes(activeUser._id),
+          capsulesQty: await Capsule.count({ ownerID: req.params.userId }),
+          subscribersQty: user.subscribers?.length,
+        }
+        delete result.subscribers
+
+        res.send(clientId(result))
+      } else res.status(404).send(setError('User not found', 404))
     })
     .catch((error) => {
+      console.log(error)
       res.status(500).send(setError(error.message, 500))
     })
 })

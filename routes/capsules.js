@@ -35,22 +35,29 @@ router.post('/', auth, async (req, res) => {
 })
 
 // GET CAPSULES
-router.get('/', (req, res) => {
+router.get('/', auth, (req, res) => {
   Capsule.find(mongoId(_.pick(req.query, ['ownerID'])))
     .then(async capsules => {
       const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
       const owners = await User.find().where('_id').in(ownersIDs).exec()
       const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: owner }), {})
       const result = map(capsules, (capsuleRecord) => {
-        const capsule = { ...capsuleRecord._doc }
+        const capsule = {
+          ...capsuleRecord._doc,
+          trackersQty: capsuleRecord.trackers?.length || 0,
+          isTrackedOn: capsuleRecord.trackers?.includes(req.user._id),
+          nickname: ownersObject[capsuleRecord.ownerID.toString()].nickname,
+        }
+        delete capsule.trackers
         if (new Date(capsule.canOpenAt) > new Date())
           delete capsule.content
-        capsule.nickname = ownersObject[capsule.ownerID.toString()].nickname
+
         return clientId(capsule)
       })
       res.send(result)
     })
     .catch((error) => {
+      console.log(error)
       res.status(500).send(setError(`something went wrong`, 500))
     })
 })
@@ -59,11 +66,20 @@ router.get('/', (req, res) => {
 router.get(`/:capsuleId`, auth, (req, res) => {
   Capsule.findById(req.params.capsuleId)
     .then(async capsule => {
+      console.log(req.user._id)
       const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
       if (capsule) {
         if (canBeOpened) {
           const owner = await User.findById(capsule.ownerID)
-          res.send(clientId({ ...capsule._doc, owner, canBeOpened }))
+          const result = {
+            ...capsule._doc,
+            owner,
+            canBeOpened,
+            trackersQty: capsule.trackers?.length || 0,
+            isTrackedOn: capsule.trackers?.includes(req.user._id)
+          }
+          delete result.trackers
+          res.send(clientId(result))
         } else res.status(400).send('It\'s not time yet')
       } else res.status(404).send('Capsule not found')
     })
