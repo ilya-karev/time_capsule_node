@@ -61,6 +61,8 @@ router.put('/update', auth, async (req, res) => {
 // SUBSCRIBE
 router.post('/:userId/track', async (req, res) => {
   const subscriber = jwt.decode(req.headers["x-auth-token"])
+  if (req.params.userId === subscriber._id)
+    res.status(400).send(setError('You can\'t subscribe on yourself', 400));
   
   const isAlreadySubscripted = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
   if (isAlreadySubscripted) {
@@ -81,6 +83,8 @@ router.post('/:userId/track', async (req, res) => {
 // UNSUBSCRIBE
 router.delete('/:userId/untrack', async (req, res) => {
   const subscriber = jwt.decode(req.headers["x-auth-token"])
+  if (req.params.userId === subscriber._id)
+    res.status(400).send(setError('You can\'t unsubscribe from yourself', 400));
   
   const isUserExists = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
 
