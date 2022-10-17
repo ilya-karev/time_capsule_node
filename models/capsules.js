@@ -28,6 +28,7 @@ const validateCapsule = async capsule => {
     content: yup.string().required().min(10, 'Content must be at least 10 characters length').max(20000),
     canOpenAt: yup.date().required(),
     createdAt: yup.date().required(),
+    tags: yup.array(yup.string().matches(/(?=^.{3,25}$)(?!^[_-].+)(?!.+[_-]$)(?!.*[_-]{2,})[^<>[\]{}|\\\/^~%# :;,$%?\0-\cZ]+$/)).max(3, "Only 3 tags are allowed")
   })
 
   return schema

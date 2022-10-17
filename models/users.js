@@ -40,7 +40,7 @@ const UserSchema = new mongoose.Schema({
 const validateUser = async user => {
   const schema = yup.object().shape({
     email: yup.string().required().email().min(5).max(255),
-    password: yup.string().required().min(5).max(255)
+    password: yup.string().required().matches(/^[a-z0-9]+$/).min(5).max(255)
   })
 
   return schema
