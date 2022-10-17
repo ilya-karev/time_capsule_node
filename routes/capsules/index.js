@@ -1,13 +1,14 @@
 const express = require('express')
 const _ = require('lodash');
 const jwt = require('jsonwebtoken');
-const { Capsule, validateCapsule } = require('../models/capsules');
 const { map, reduce } = require('lodash');
 
-const auth = require("../middleware/auth");
-const { User } = require('../models/users');
-const { clientId, mongoId } = require('../helpers/clientId');
-const setError = require('../helpers/setError');
+const auth = require("../../middleware/auth");
+const { User } = require('../../models/users');
+const { Capsule, validateCapsule } = require('../../models/capsules');
+const { clientId, mongoId } = require('../../helpers/clientId');
+const setError = require('../../helpers/setError');
+const { setCapsule } = require('./helpers/setCapsule');
 
 const router = express.Router()
 
@@ -15,8 +16,6 @@ const router = express.Router()
 router.post('/', auth, async (req, res) => {
   const error = await validateCapsule(req.body)
   if (error.message) return res.status(400).send(setError(error.message, 400))
-
-  console.log(jwt.decode(req.headers["x-auth-token"]))
 
   const capsule = new Capsule({
     content: req.body.content,
@@ -36,27 +35,41 @@ router.post('/', auth, async (req, res) => {
 
 // GET CAPSULES
 router.get('/', auth, (req, res) => {
-  Capsule.find(mongoId(_.pick(req.query, ['ownerID'])))
+  query = _.pick(req.query, ['ownerID', 'status'])
+  if (query.status) query.canOpenAt = query.status === 'ready' ? { $lte: new Date() } : { $gte: new Date() }
+  delete query.status
+
+  Capsule.find(mongoId(query))
     .then(async capsules => {
       const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
       const owners = await User.find().where('_id').in(ownersIDs).exec()
       const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: owner }), {})
       const result = map(capsules, (capsuleRecord) => {
-        const capsule = {
-          ...capsuleRecord._doc,
-          trackersQty: capsuleRecord.trackers?.length || 0,
-          isTrackedOn: capsuleRecord.trackers?.includes(req.user._id),
-          likesQty: capsuleRecord.likes?.length || 0,
-          isLiked: capsuleRecord.likes?.includes(req.user._id),
-          nickname: ownersObject[capsuleRecord.ownerID.toString()].nickname,
-        }
+        const capsule = setCapsule(capsuleRecord, ownersObject, req.user._id)
+        capsule.nickname = ownersObject[capsuleRecord.ownerID.toString()].nickname
+        return capsule
+      })
+      res.send(result)
+    })
+    .catch((error) => {
+      console.log('GET CAPSULES')
+      console.log(error)
+      res.status(500).send(setError(`something went wrong`, 500))
+    })
+})
 
-        delete capsule.trackers
-        delete capsule.likes
-        if (new Date(capsule.canOpenAt) > new Date())
-          delete capsule.content
-
-        return clientId(capsule)
+// GET TRACKED CAPSULES
+router.get('/tracked', auth, async (req, res) => {
+  const user = await User.findById(req.user._id)
+  Capsule.find({ '_id': { $in: user.tracks } })
+    .then(async capsules => {
+      const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
+      const owners = await User.find().where('_id').in(ownersIDs).exec()
+      const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: owner }), {})
+      const result = map(capsules, (capsuleRecord) => {
+        const capsule = setCapsule(capsuleRecord, ownersObject, req.user._id)
+        capsule.nickname = ownersObject[capsuleRecord.ownerID.toString()].nickname
+        return capsule
       })
       res.send(result)
     })
@@ -70,28 +83,20 @@ router.get('/', auth, (req, res) => {
 router.get(`/:capsuleId`, auth, (req, res) => {
   Capsule.findById(req.params.capsuleId)
     .then(async capsule => {
-      console.log(req.user._id)
       const canBeOpened = new Date(capsule.canOpenAt) <= new Date()
       if (capsule) {
         if (canBeOpened) {
           const owner = await User.findById(capsule.ownerID)
-          const result = {
-            ...capsule._doc,
-            owner,
-            canBeOpened,
-            trackersQty: capsule.trackers?.length || 0,
-            isTrackedOn: capsule.trackers?.includes(req.user._id),
-            likesQty: capsule.likes?.length || 0,
-            isLiked: capsule.likes?.includes(req.user._id),
-          }
-          delete result.trackers
-          delete result.likes
+          const result = setCapsule(capsule, owner)
+          result.owner = owner
+          result.canBeOpened = canBeOpened
           res.send(clientId(result))
         } else res.status(400).send('It\'s not time yet')
       } else res.status(404).send('Capsule not found')
     })
     .catch((error) => {
-      console.log(error.message)
+      console.log('GET CAPSULE BY ID')
+      console.log(error)
       res.status(500).send(setError(error.message, 500))
     })
 })
