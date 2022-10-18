@@ -63,20 +63,21 @@ router.post('/:userId/track', async (req, res) => {
   const subscriber = jwt.decode(req.headers["x-auth-token"])
   if (req.params.userId === subscriber._id)
     res.status(400).send(setError('You can\'t subscribe on yourself', 400));
-  
-  const isAlreadySubscripted = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
-  if (isAlreadySubscripted) {
-    res.status(400).send(setError('You have already subscripted to this user', 400));
-  } else {
-    User.findById(subscriber._id).then(user => {
-      user.subscriptions.push(req.params.userId)
-      user.save()
-    })
-    User.findById(req.params.userId).then(user => {
-      user.subscribers.push(subscriber._id)
-      user.save()
-    })
-    res.status(200).send({ message: 'You have successfully subscribed', status: 200 });
+  else {
+    const isAlreadySubscripted = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
+    if (isAlreadySubscripted) {
+      res.status(400).send(setError('You have already subscripted to this user', 400));
+    } else {
+      User.findById(subscriber._id).then(user => {
+        user.subscriptions.push(req.params.userId)
+        user.save()
+      })
+      User.findById(req.params.userId).then(user => {
+        user.subscribers.push(subscriber._id)
+        user.save()
+      })
+      res.status(200).send({ message: 'You have successfully subscribed', status: 200 });
+    }
   }
 })
 
@@ -85,24 +86,25 @@ router.delete('/:userId/untrack', async (req, res) => {
   const subscriber = jwt.decode(req.headers["x-auth-token"])
   if (req.params.userId === subscriber._id)
     res.status(400).send(setError('You can\'t unsubscribe from yourself', 400));
-  
-  const isUserExists = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
+  else {
+    const isUserExists = await User.findOne({ _id: req.params.userId, subscribers: { $all : [subscriber._id] } })
 
-  if (!isUserExists) {
-    res.status(400).send(setError('You have not subscripted to this user', 400));
-  } else {
-    await User.findByIdAndUpdate(req.params.userId, {
-        $pull: {
-          subscribers: subscriber._id,
-        },
-    });
-    await User.findByIdAndUpdate(subscriber._id, {
-        $pull: {
-          subscriptions: req.params.userId,
-        },
-    });
-  
-    res.status(200).send({ message: 'You have successfully unsubscribed', status: 200 });
+    if (!isUserExists) {
+      res.status(400).send(setError('You have not subscripted to this user', 400));
+    } else {
+      await User.findByIdAndUpdate(req.params.userId, {
+          $pull: {
+            subscribers: subscriber._id,
+          },
+      });
+      await User.findByIdAndUpdate(subscriber._id, {
+          $pull: {
+            subscriptions: req.params.userId,
+          },
+      });
+    
+      res.status(200).send({ message: 'You have successfully unsubscribed', status: 200 });
+    }
   }
 })
 
