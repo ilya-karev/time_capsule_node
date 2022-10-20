@@ -1,6 +1,6 @@
 const { clientId } = require('../../../helpers/clientId');
 
-const setCapsule = (capsuleRecord, ownersObject, userId) => {
+const setCapsule = (capsuleRecord, userId) => {
   const capsule = {
     ...capsuleRecord._doc,
     trackersQty: capsuleRecord.trackers?.length || 0,
