@@ -3,12 +3,13 @@ const config = require('config');
 const bcrypt = require('bcrypt');
 const express = require('express');
 const _ = require('lodash');
-const { User, validateUser, validateUserInfo } = require('../models/users');
-const auth = require("../middleware/auth");
-const { map, pick } = require('lodash');
-const setError = require('../helpers/setError');
-const { clientId } = require('../helpers/clientId');
-const { Capsule } = require('../models/capsules');
+const { User, validateUser, validateUserInfo } = require('../../models/users');
+const auth = require("../../middleware/auth");
+const { map, pick, findIndex } = require('lodash');
+const setError = require('../../helpers/setError');
+const { clientId } = require('../../helpers/clientId');
+const { Capsule } = require('../../models/capsules');
+const { setUser } = require('./helpers/setUser');
 
 const router = express.Router();
 
@@ -54,7 +55,10 @@ router.put('/update', auth, async (req, res) => {
   }
 
   User.findByIdAndUpdate(req.user._id, userInfo, { returnOriginal: false })
-      .then(user => res.status(200).send({ message: 'User was successfully updated', status: 200, data: user }))
+      .then(async user => {
+        const userData = await setUser(user, req.user._id)
+        res.status(200).send({ message: 'User was successfully updated', status: 200, data: userData })
+      })
       .catch(error => res.status(500).send({ message: 'User wasn\'t updated, something went wrong', status: 500, error }))
 })
 
@@ -75,13 +79,9 @@ router.post('/:userId/track', async (req, res) => {
       User.findById(req.params.userId).then(async user => {
         user.subscribers.push(subscriber._id)
         user.save()
-
-        const responseData = clientId(pick(user, ['account', 'site', 'about', '_id']))
-        responseData.capsulesQty = await Capsule.count({ ownerID: req.params.userId }),
-        responseData.isTrackedOn = user.subscribers.includes(subscriber._id)
-        responseData.subscribersQty = user.subscribers.length
-
-        res.status(200).send({ message: 'You have successfully subscribed', status: 200, data: responseData });
+        const userData = await setUser(user, subscriber._id)
+        console.log(userData)
+        res.status(200).send({ message: 'You have successfully subscribed', status: 200, data: userData });
       })
     }
   }
@@ -98,18 +98,18 @@ router.delete('/:userId/untrack', async (req, res) => {
     if (!isUserExists) {
       res.status(400).send(setError('You have not subscripted to this user', 400));
     } else {
-      await User.findByIdAndUpdate(req.params.userId, {
-          $pull: {
-            subscribers: subscriber._id,
-          },
-      });
       await User.findByIdAndUpdate(subscriber._id, {
           $pull: {
             subscriptions: req.params.userId,
           },
       });
-    
-      res.status(200).send({ message: 'You have successfully unsubscribed', status: 200 });
+      User.findById(req.params.userId).then(async user => {
+        const subscriberIndex = findIndex(user.subscribers, (subscriber) => subscriber.id === req.params.userId)
+        user.subscribers.splice(subscriberIndex, 1)
+        user.save()
+        const userData = await setUser(user, subscriber._id)
+        res.status(200).send({ message: 'You have successfully subscribed', status: 200, data: userData });
+      })
     }
   }
 })
@@ -131,8 +131,12 @@ router.get('/:userId/isSubscribed', async (req, res) => {
 // GET USERS
 router.get('/', auth, (req, res) => {
   User.find()
-    .then(users => res.send(map(users, user => clientId(user))))
+    .then(users => {
+      const activeUser = jwt.decode(req.headers["x-auth-token"])
+      res.send(map(users, user => setUser(user, activeUser.id)))
+    })
     .catch((error) => {
+      console.log(error)
       res.status(500).send(setError(`something went wrong`, 500))
     })
 })
@@ -140,19 +144,11 @@ router.get('/', auth, (req, res) => {
 // GET USER BY ID
 router.get(`/:userId`, auth, (req, res) => {
   User.findById(req.params.userId)
-    .select('-subscriptions -tracks')
     .then(async user => {
       if (user) {
         const activeUser = jwt.decode(req.headers["x-auth-token"])
-        const result = {
-          ...user._doc,
-          isTrackedOn: user.subscribers.includes(activeUser._id),
-          capsulesQty: await Capsule.count({ ownerID: req.params.userId }),
-          subscribersQty: user.subscribers?.length,
-        }
-        delete result.subscribers
-
-        res.send(clientId(result))
+        const result = await setUser(user, activeUser._id)
+        res.send(result)
       } else res.status(404).send(setError('User not found', 404))
     })
     .catch((error) => {

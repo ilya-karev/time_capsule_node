@@ -26,8 +26,9 @@ router.post('/', auth, async (req, res) => {
     createdAt: req.body.createdAt,
   })
 
-  capsule.save().then(capsule => {
-    res.send(clientId(capsule))
+  capsule.save().then(async capsule => {
+    const capsuleData = await setCapsule(capsule)
+    res.send(capsuleData)
   }).catch(error => {
     console.log(error)
     res.status(500).send(`Capsule was not created`)
@@ -85,8 +86,7 @@ router.get(`/:capsuleId`, auth, (req, res) => {
         if (canBeOpened) {
           const owner = await User.findById(capsule.ownerID)
           const result = await setCapsule(capsule, req.user._id, owner)
-          result.canBeOpened = canBeOpened
-          res.send(clientId(result))
+          res.send(result)
         } else res.status(400).send('It\'s not time yet')
       } else res.status(404).send('Capsule not found')
     })
