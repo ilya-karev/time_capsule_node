@@ -19,7 +19,7 @@ const UserSchema = new mongoose.Schema({
   subscriptions: [mongoose.ObjectId],
   subscribers: [mongoose.ObjectId],
   tracks: [mongoose.ObjectId],
-  nickname: {
+  account: {
     type: String,
     minlength: 2,
     maxlength: 255,
@@ -55,7 +55,7 @@ const validateUser = async user => {
 
 const validateUserInfo = async userInfo => {
   const schema = yup.object().shape({
-    nickname: yup.string().required().min(2).max(17),
+    account: yup.string().required().min(2).max(17),
     site: yup.string().max(255),
     about: yup.string().max(1024),
   })

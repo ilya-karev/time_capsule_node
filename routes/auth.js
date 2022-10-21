@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     const token = jwt.sign({ _id: user._id }, config.get('PrivateKey'), { expiresIn: "1d" });
 
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
-    res.header('x-auth-token', token).send(clientId(_.pick(user, ['_id', 'email', 'nickname'])));
+    res.header('x-auth-token', token).send(clientId(_.pick(user, ['_id', 'email', 'account'])));
   } catch (err) {
     console.log(err)
   }

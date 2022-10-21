@@ -5,7 +5,7 @@ const express = require('express');
 const _ = require('lodash');
 const { User, validateUser, validateUserInfo } = require('../models/users');
 const auth = require("../middleware/auth");
-const { map } = require('lodash');
+const { map, pick } = require('lodash');
 const setError = require('../helpers/setError');
 const { clientId } = require('../helpers/clientId');
 const { Capsule } = require('../models/capsules');
@@ -45,12 +45,12 @@ router.put('/update', auth, async (req, res) => {
   if (error.message)
     return res.status(400).send(setError(error.message, 400))
 
-  const userInfo = _.pick(req.body, ['nickname', 'site', 'about'])
-  if (userInfo.nickname) {
-    userInfo.nickname = userInfo.nickname.toLowerCase()
-    const isNicknameTaken = await User.findOne({ nickname: userInfo.nickname });
-    if (isNicknameTaken)
-      return res.status(400).send(setError('This nickname is already taken!', 400));
+  const userInfo = _.pick(req.body, ['account', 'site', 'about'])
+  if (userInfo.account) {
+    userInfo.account = userInfo.account.toLowerCase()
+    const isaccountTaken = await User.findOne({ account: userInfo.account });
+    if (isaccountTaken)
+      return res.status(400).send(setError('This account is already taken!', 400));
   }
 
   User.findByIdAndUpdate(req.user._id, userInfo, { returnOriginal: false })
@@ -72,11 +72,17 @@ router.post('/:userId/track', async (req, res) => {
         user.subscriptions.push(req.params.userId)
         user.save()
       })
-      User.findById(req.params.userId).then(user => {
+      User.findById(req.params.userId).then(async user => {
         user.subscribers.push(subscriber._id)
         user.save()
+
+        const responseData = clientId(pick(user, ['account', 'site', 'about', '_id']))
+        responseData.capsulesQty = await Capsule.count({ ownerID: req.params.userId }),
+        responseData.isTrackedOn = user.subscribers.includes(subscriber._id)
+        responseData.subscribersQty = user.subscribers.length
+
+        res.status(200).send({ message: 'You have successfully subscribed', status: 200, data: responseData });
       })
-      res.status(200).send({ message: 'You have successfully subscribed', status: 200 });
     }
   }
 })

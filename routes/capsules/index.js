@@ -9,6 +9,7 @@ const { Capsule, validateCapsule } = require('../../models/capsules');
 const { clientId, mongoId } = require('../../helpers/clientId');
 const setError = require('../../helpers/setError');
 const { setCapsule } = require('./helpers/setCapsule');
+const { setOwner } = require('./helpers/setOwner');
 
 const router = express.Router()
 
@@ -43,12 +44,10 @@ router.get('/', auth, (req, res) => {
     .then(async capsules => {
       const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
       const owners = await User.find().where('_id').in(ownersIDs).exec()
-      const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: owner }), {})
-      const result = map(capsules, (capsuleRecord) => {
-        const capsule = setCapsule(capsuleRecord, req.user._id)
-        capsule.nickname = ownersObject[capsuleRecord.ownerID.toString()].nickname
-        return capsule
-      })
+      const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: setOwner(owner) }), {})
+      const result = await Promise.all(map(capsules, async (capsuleRecord) => {
+        return await setCapsule(capsuleRecord, req.user._id, ownersObject[capsuleRecord.ownerID.toString()])
+      }))
       res.send(result)
     })
     .catch((error) => {
@@ -66,11 +65,9 @@ router.get('/tracked', auth, async (req, res) => {
       const ownersIDs = map(capsules, (capsule) => capsule.ownerID)
       const owners = await User.find().where('_id').in(ownersIDs).exec()
       const ownersObject = reduce(owners, (acc, owner) => ({ ...acc, [owner._id]: owner }), {})
-      const result = map(capsules, (capsuleRecord) => {
-        const capsule = setCapsule(capsuleRecord, req.user._id)
-        capsule.nickname = ownersObject[capsuleRecord.ownerID.toString()].nickname
-        return capsule
-      })
+      const result = await Promise.all(map(capsules, async (capsuleRecord) => {
+        return await setCapsule(capsuleRecord, req.user._id, ownersObject[capsuleRecord.ownerID.toString()])
+      }))
       res.send(result)
     })
     .catch((error) => {
@@ -87,8 +84,7 @@ router.get(`/:capsuleId`, auth, (req, res) => {
       if (capsule) {
         if (canBeOpened) {
           const owner = await User.findById(capsule.ownerID)
-          const result = setCapsule(capsule, req.user._id)
-          result.owner = owner
+          const result = await setCapsule(capsule, req.user._id, owner)
           result.canBeOpened = canBeOpened
           res.send(clientId(result))
         } else res.status(400).send('It\'s not time yet')
@@ -113,11 +109,11 @@ router.post('/:capsuleId/track', auth, async (req, res) => {
       user.tracks.push(req.params.capsuleId)
       user.save()
     })
-    Capsule.findById(req.params.capsuleId).then(capsule => {
+    Capsule.findById(req.params.capsuleId).then(async capsule => {
       capsule.trackers.push(tracker._id)
       capsule.save()
 
-      const result = setCapsule(capsule, req.user._id)
+      const result = await setCapsule(capsule, req.user._id)
       res.status(200).send({ message: 'You are now track this capsule', status: 200, data: result });
     })
   }
@@ -134,12 +130,12 @@ router.delete('/:capsuleId/untrack', auth, async (req, res) => {
       $pull: { tracks: req.params.capsuleId }
     });
     
-    Capsule.findById(req.params.capsuleId).then(capsule => {
+    Capsule.findById(req.params.capsuleId).then(async capsule => {
       const trackerIndex = findIndex(capsule.trackers, (track) => track === tracker._id)
       capsule.trackers.splice(trackerIndex, 1)
       capsule.save()
       
-      const result = setCapsule(capsule, req.user._id)
+      const result = await setCapsule(capsule, req.user._id)
       res.status(200).send({ message: 'You are not now track this capsule', status: 200, data: result });
     })
   }
@@ -167,13 +163,18 @@ router.post('/:capsuleId/like', auth, async (req, res) => {
     if (likedCapsule) {
       res.status(400).send(setError('You already liked this capsule', 400));
     } else {
-      Capsule.findById(req.params.capsuleId).then(capsule => {
+      Capsule.findById(req.params.capsuleId).then(async capsule => {
         capsule.likes.push(liker._id)
         capsule.save()
         
-        const result = setCapsule(capsule, req.user._id)
+        const dataOwner = await User.findById(capsule.ownerID)
+        owner = setOwner(dataOwner)
+        console.log({ dataOwner, owner })
+
+        const result = await setCapsule(capsule, req.user._id, owner)
+        console.log(result)
         res.status(200).send({ message: 'You liked this capsule', status: 200, data: result });
-      })
+      }).catch((err) => console.log(err))
     }
   } catch (error) {
     console.log(error)
@@ -188,12 +189,12 @@ router.delete('/:capsuleId/unlike', auth, async (req, res) => {
   if (!likedCapsule) {
     res.status(400).send(setError('You not liked this capsule', 400));
   } else {
-    Capsule.findById(req.params.capsuleId).then(capsule => {
+    Capsule.findById(req.params.capsuleId).then(async capsule => {
       const likeIndex = findIndex(capsule.likes, (like) => like ===liker._id)
       capsule.likes.splice(likeIndex, 1)
       capsule.save()
       
-      const result = setCapsule(capsule, req.user._id)
+      const result = await setCapsule(capsule, req.user._id)
       res.status(200).send({ message: 'You unliked this capsule', status: 200, data: result });
     })
   }
