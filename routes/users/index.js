@@ -125,7 +125,6 @@ router.get('/:userId/isSubscribed', async (req, res) => {
       else
         res.status(200).send(false);
     })
-
 })
 
 // GET USERS
@@ -138,6 +137,21 @@ router.get('/', auth, (req, res) => {
     .catch((error) => {
       console.log(error)
       res.status(500).send(setError(`something went wrong`, 500))
+    })
+})
+
+
+// GET USERS SUBSCRIBED ON
+router.get('/subscribedOn', auth, async (req, res) => {
+  const activeUser = await User.findById(req.user._id)
+  User.find({ '_id': { $in: activeUser.subscriptions } })
+    .then(async users => {
+      const usersData = await Promise.all(map(users, async user => await setUser(user, activeUser._id, true)))
+      res.send(usersData)
+    })
+    .catch((error) => {
+      console.log(error)
+      res.status(500).send(setError(error.message, 500))
     })
 })
 

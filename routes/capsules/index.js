@@ -6,7 +6,7 @@ const { map, reduce, findIndex } = require('lodash');
 const auth = require("../../middleware/auth");
 const { User } = require('../../models/users');
 const { Capsule, validateCapsule } = require('../../models/capsules');
-const { clientId, mongoId } = require('../../helpers/clientId');
+const { mongoId } = require('../../helpers/clientId');
 const setError = require('../../helpers/setError');
 const { setCapsule } = require('./helpers/setCapsule');
 const { setOwner } = require('./helpers/setOwner');
@@ -54,7 +54,7 @@ router.get('/', auth, (req, res) => {
     .catch((error) => {
       console.log('GET CAPSULES')
       console.log(error)
-      res.status(500).send(setError(`something went wrong`, 500))
+      res.status(500).send(setError(error.message, 500))
     })
 })
 
@@ -73,7 +73,7 @@ router.get('/tracked', auth, async (req, res) => {
     })
     .catch((error) => {
       console.log(error)
-      res.status(500).send(setError(`something went wrong`, 500))
+      res.status(500).send(setError(error.message, 500))
     })
 })
 
