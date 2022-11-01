@@ -56,7 +56,7 @@ export const validateUser = async (user: IUser) => {
 
 export const validateUserInfo = async (userInfo: IUserInfo) => {
   const schema = object().shape({
-    account: string().required().min(2).max(17),
+    account: string().required().matches(/^[a-zA-Z0-9]+$/).min(2).max(17),
     site: string().max(255),
     about: string().max(1024),
   })

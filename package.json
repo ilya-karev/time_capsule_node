@@ -5,9 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "./node_modules/nodemon/bin/nodemon.js",
     "start": "node dist/src/index.js",
-    "postinstall": "tsc"
+    "postinstall": "tsc",
+
+    "dev": "npm run build && nodemon ./dist/src/index.js",
+    "build": "npx tsc",
+    "watch-ts": "tsc -w"
   },
   "keywords": [],
   "author": "",

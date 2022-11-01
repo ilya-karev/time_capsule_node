@@ -29,7 +29,12 @@ export const validateCapsule = async (capsule: ICapsule) => {
     content: string().required().min(10, 'Content must be at least 10 characters length').max(20000),
     canOpenAt: date().required(),
     createdAt: date().required(),
-    tags: array(string().matches(/(?=^.{3,25}$)(?!^[_-].+)(?!.+[_-]$)(?!.*[_-]{2,})[^<>[\]{}|\\\/^~%# :;,$%?\0-\cZ]+$/)).max(3, "Only 3 tags are allowed")
+    // (?=^.{3,25}$) - от трех до 25 символов
+    // (?!^[_-].+) - нельзя тире и подчёркивание в начале
+    // (?!.+[_-]$) - нельзя типе и подчёркивание в конце
+    // (?!.*[&_-]{2,}) - можно тире и подчёркинвание в середине
+    // [^<>[\]{}|\\\/^~*@%# :;,$%?\0-\cZ]+$ - нельзя спец.символы
+    tags: array(string().matches(/(?=^.{3,25}$)(?!^[_-].+)(?!.+[_-]$)(?!.*[&_-]{2,})[^<>[\]{}|\\\/^~*@%# :;,$%?\0-\cZ]+$/)).max(3, "Only 3 tags are allowed")
   })
 
   return schema

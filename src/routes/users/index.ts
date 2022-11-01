@@ -32,7 +32,7 @@ router.post('/', async (req: any, res) => {
     newUser.password = hash(req.body.password, salt);
     await newUser.save();
 
-    const token = sign({ _id: newUser._id }, 'Secret', /*get('PrivateKey'),*/ { expiresIn: "1d" });
+    const token = sign({ _id: newUser._id }, 'Secret' /*get('PrivateKey'),*/);
 
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
     res.header('x-auth-token', token).send(clientId(pick(newUser, ['_id', 'email'])));
