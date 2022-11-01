@@ -29,10 +29,9 @@ router.post('/', async (req: any, res) => {
       tracks: [],
     });
     const salt = await genSalt(10);
-    newUser.password = hash(req.body.password, salt);
+    newUser.password = await hash(req.body.password, salt);
     await newUser.save();
-
-    const token = sign({ _id: newUser._id }, 'Secret' /*get('PrivateKey'),*/);
+    const token = sign({ _id: newUser._id }, 'Secret'/* get('PrivateKey')*/);
 
     res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
     res.header('x-auth-token', token).send(clientId(pick(newUser, ['_id', 'email'])));

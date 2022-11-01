@@ -26,7 +26,7 @@ router.post('/', async (req: any, res) => {
       if (!validPassword)
         return res.status(400).send(setError('Incorrect email or password.', 400));
         
-      const token = sign({ _id: user._id }, 'Secret' /*get('PrivateKey'),*/ );
+      const token = sign({ _id: user._id }, 'Secret'/* get('PrivateKey')*/);
   
       res.setHeader("Access-Control-Expose-Headers", "x-auth-token");
       res.header('x-auth-token', token).send(clientId(pick(user, ['_id', 'email', 'account'])));

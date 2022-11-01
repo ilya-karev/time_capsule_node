@@ -12,11 +12,9 @@ const app = express()
 require('dotenv').config()
 
 // if (!get('PrivateKey')) {
-//   console.log(2.5)
 //   console.error('FATAL ERROR: PrivateKey is not defined.');
 //   process.exit(1);
 // }
-
 
 const PORT = process.env.PORT || 3000
 

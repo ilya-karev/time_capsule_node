@@ -11,7 +11,7 @@ const verifyToken = (req: any, res: Response, next: NextFunction) => {
     return res.status(403).send("A token is required for authentication");
   }
   try {
-    const user = verify(token, 'Secret' /*get('PrivateKey')*/) as { _id: ObjectId };
+    const user = verify(token, 'Secret'/* get('PrivateKey')*/) as { _id: ObjectId };
     req.user = user;
   } catch (err) {
     return res.status(401).send("Invalid Token");
