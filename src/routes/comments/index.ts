@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { MongooseError } from 'mongoose';
-import { map } from 'lodash';
+import { get, map, pick } from 'lodash';
 
 import auth from "../../middleware/auth";
 import { Comment, validateComment } from '../../models/comments';
@@ -17,21 +17,30 @@ router.post('/', auth, async (req: any, res) => {
   if (error.message) return res.status(400).send(setError(error.message, 400))
 
   const owner = await User.findById(req.user._id)
+  
+  console.log({ body: req.body })
 
   // FIX ANY
-  const comment: any = new Comment({
+  const newComment = {
+    text: req.body.text,
     capsuleID: req.body.capsuleID,
     owner: {
       id: owner._id,
       account: owner.account,
     },
-    text: req.body.text,
     createdAt: new Date(),
-    replyToID: req.body.replyToID,
-  })
+  } as any
+  if (get(req, 'body.reply.owner.id'))
+    newComment.reply = req.body.reply
 
+  const comment: any = new Comment(newComment)
   comment.save()
-    .then(async (comment: IComment) => res.send(comment))
+    .then(async (comment: IComment) => {
+      const result = pick(comment._doc, ['_id', 'text', 'capsuleID', 'createdAt','owner']) as IComment
+      if (get(comment, '_doc.reply.owner.id'))
+        result.reply = comment.reply
+      res.send(clientId(result))
+    })
     .catch((error: MongooseError) => {
       console.log('CREATE A NEW COMMENT')
       console.log(error)
@@ -45,7 +54,12 @@ router.get('/', auth, (req: any, res) => {
 
   Comment.find<IComment>({ capsuleID })
     .then(async comments => {
-      const result = map(comments, comment => clientId(comment._doc))
+      const result = map(comments, comment => {
+        const result = pick(comment._doc, ['_id', 'text', 'capsuleID', 'createdAt','owner']) as IComment
+        if (get(comment, '_doc.reply.owner.id'))
+          result.reply = comment.reply
+        return clientId(result)
+      })
       res.send(result)
     })
     .catch((error) => {

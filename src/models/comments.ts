@@ -27,15 +27,28 @@ const CommentSchema = new Schema({
   createdAt: {
     type: Date,
   },
-  replyToID: {
-    type: Schema.Types.ObjectId,
+  reply: {
+    id: {
+      type: Schema.Types.ObjectId,
+    },
+    owner: {
+      id: {
+        type: Schema.Types.ObjectId,
+      },
+      account: {
+        type: String,
+      },
+    },
+    text: {
+      type: String,
+    },
     required: false,
   },
 }) 
 
 export const validateComment = async (comment: IComment) => {
   const schema = object().shape({
-    text: string().required().min(3, 'Comment must be at least 10 characters length').max(20000),
+    text: string().required().min(3, 'Comment must be at least 3 characters length').max(2000, 'Comment must be 2000 characters maximum'),
     capsuleID: string().required(),
   })
 
