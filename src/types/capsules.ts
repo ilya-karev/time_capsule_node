@@ -9,6 +9,7 @@ export type ICapsule = {
 
   save: () => Promise<ICapsule>  
   _doc?: ICapsule
+  _id?: ObjectId
 }
 
 export type IQuery = {

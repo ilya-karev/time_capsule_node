@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { pick } from 'lodash';
-import { decode } from 'jsonwebtoken';
-import { map, reduce, findIndex } from 'lodash';
+import { map, findIndex } from 'lodash';
 
 import auth from "../../middleware/auth";
 import { User } from '../../models/users';
@@ -13,6 +12,7 @@ import { setOwner } from './helpers/setOwner';
 import { ICapsule } from '../../types/capsules';
 import { IUser } from '../../types/users';
 import { MongooseError } from 'mongoose';
+import getOwnersAndComments from './helpers/getOwnersAndComments';
 
 const router = Router()
 
@@ -33,7 +33,7 @@ router.post('/', auth, async (req: any, res) => {
   })
 
   capsule.save().then(async (capsule: ICapsule) => {
-    const capsuleData = await setCapsule(capsule)
+    const capsuleData = await setCapsule({ capsuleRecord: capsule })
     res.send(capsuleData)
   }).catch((error: MongooseError) => {
     console.log(error)
@@ -49,13 +49,16 @@ router.get('/', auth, (req: any, res) => {
 
   Capsule.find<ICapsule>(mongoId(query))
     .then(async capsules => {
-      const ownersIDs = map(capsules, (capsule) => capsule?.ownerID)
-      const owners = await User.find<IUser>().where('_id').in(ownersIDs).exec()
-      // FIX ANY
-      const ownersObject: any = reduce(owners, (acc, owner) => ({ ...acc, [owner._id.toString()]: setOwner(owner) }), {})
+      const { ownersObject, commentsObject } = await getOwnersAndComments(capsules)
+      // console.log({ ownersObject, commentsObject })
       const result = await Promise.all(map(capsules, async (capsuleRecord: ICapsule) => {
         if (!!capsuleRecord)
-          return await setCapsule(capsuleRecord, req.user._id, ownersObject[capsuleRecord.ownerID.toString()])
+          return await setCapsule({
+            capsuleRecord,
+            userId: req.user._id,
+            capsuleOwner: ownersObject[capsuleRecord.ownerID.toString()], 
+            commentsQty: commentsObject[capsuleRecord._id.toString()],
+          })
       }))
       res.send(result)
     })
@@ -74,12 +77,15 @@ router.get('/tracked', auth, async (req: any, res) => {
   } else {
     Capsule.find<ICapsule>({ '_id': { $in: user.tracks } })
       .then(async capsules => {
-        const ownersIDs = map(capsules, (capsule) => capsule?.ownerID)
-        const owners = await User.find<IUser>().where('_id').in(ownersIDs).exec()
-        // FIX ANY
-        const ownersObject: any = reduce(owners, (acc, owner) => ({ ...acc, [owner._id.toString()]: owner }), {})
+        const { ownersObject, commentsObject } = await getOwnersAndComments(capsules)
+        // console.log({ ownersObject, commentsObject })
         const result = await Promise.all(map(capsules, async capsuleRecord => {
-          return await setCapsule(capsuleRecord, req.user._id, ownersObject[capsuleRecord?.ownerID.toString()])
+          return await setCapsule({
+            capsuleRecord,
+            userId: req.user._id,
+            capsuleOwner: ownersObject[capsuleRecord?.ownerID.toString()],
+            commentsQty: commentsObject[capsuleRecord._id.toString()],
+          })
         }))
         res.send(result)
       })
@@ -99,7 +105,11 @@ router.get(`/:capsuleId`, auth, (req: any, res) => {
         if (canBeOpened) {
           const owner = await User.findById<IUser>(capsule.ownerID)
           if (!!owner) {
-            const result = await setCapsule(capsule, req.user._id, owner)
+            const result = await setCapsule({
+              capsuleRecord: capsule, 
+              userId: req.user._id, 
+              capsuleOwner: owner
+            })
             res.send(result)
           }
         } else res.status(400).send('It\'s not time yet')
@@ -134,8 +144,10 @@ router.post('/:capsuleId/track', auth, async (req: any, res) => {
       if (!!capsule) {
         capsule.trackers.push(tracker._id)
         capsule.save()
-  
-        const result = await setCapsule(capsule, req.user._id)
+        const result = await setCapsule({
+          capsuleRecord: capsule,
+          userId: req.user._id
+        })
         if (!responseWasSent)
           res.status(200).send({ message: 'You are now track this capsule', status: 200, data: result });
       } else if (!responseWasSent) {
@@ -163,7 +175,10 @@ router.delete('/:capsuleId/untrack', auth, async (req: any, res) => {
         capsule.trackers.splice(trackerIndex, 1)
         capsule.save()
         
-        const result = await setCapsule(capsule, req.user._id)
+        const result = await setCapsule({
+          capsuleRecord: capsule,
+          userId: req.user._id
+        })
         res.status(200).send({ message: 'You are not now track this capsule', status: 200, data: result });
       } else {
         res.status(400).send({ message: 'Capsule was not found', status: 400 });
@@ -202,7 +217,11 @@ router.post('/:capsuleId/like', auth, async (req: any, res) => {
           const dataOwner = await User.findById<IUser>(capsule.ownerID)
           if (!!dataOwner) {
             const owner = setOwner(dataOwner)
-            const result = await setCapsule(capsule, req.user._id, owner)
+            const result = await setCapsule({
+              capsuleRecord: capsule,
+              userId: req.user._id,
+              capsuleOwner: owner
+            })
             console.log(result)
             res.status(200).send({ message: 'You liked this capsule', status: 200, data: result });
           } else {
@@ -232,7 +251,10 @@ router.delete('/:capsuleId/unlike', auth, async (req: any, res) => {
         capsule.likes.splice(likeIndex, 1)
         capsule.save()
         
-        const result = await setCapsule(capsule, req.user._id)
+        const result = await setCapsule({
+          capsuleRecord: capsule,
+          userId: req.user._id
+        })
         res.status(200).send({ message: 'You unliked this capsule', status: 200, data: result });
       } else 
         res.status(400).send({ message: 'Capsule wasn\'t found', status: 400 });

@@ -5,7 +5,13 @@ import { IUser } from '../../../types/users';
 import { setOwner } from './setOwner';
 
 // FIX ANY
-export const setCapsule = (capsuleRecord: ICapsule, userId?: any, capsuleOwner?: IUser) => {
+type SetCapsuleProps = {
+  capsuleRecord: ICapsule
+  userId?: any
+  capsuleOwner?: IUser
+  commentsQty?: number
+}
+export const setCapsule = ({ capsuleRecord, userId, capsuleOwner, commentsQty }: SetCapsuleProps) => {
   return new Promise(async (resolve, reject) => {
     if (!!capsuleRecord) {
       let owner = capsuleOwner
@@ -21,6 +27,7 @@ export const setCapsule = (capsuleRecord: ICapsule, userId?: any, capsuleOwner?:
         isTrackedOn: capsuleRecord.trackers?.includes(userId),
         likesQty: capsuleRecord.likes?.length || 0,
         isLiked: capsuleRecord.likes?.includes(userId),
+        commentsQty: commentsQty || 0,
         owner,
       }
     
